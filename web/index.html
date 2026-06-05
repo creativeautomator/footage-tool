@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Footage Tool</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0 }
+  :root {
+    --bg: #f7f7f5; --surface: #ffffff; --border: #e5e5e2;
+    --text: #1a1a1a; --muted: #888; --blue: #2563eb;
+    --blue-bg: #eff6ff; --green: #16a34a; --green-bg: #f0fdf4;
+    --red: #dc2626; --red-bg: #fef2f2; --yellow: #d97706; --yellow-bg: #fffbeb;
+    --radius: 10px; --mono: 'SF Mono', 'Fira Code', monospace;
+  }
+  body { font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+         background: var(--bg); color: var(--text); min-height: 100vh }
+  header { background: var(--surface); border-bottom: 1px solid var(--border);
+           padding: 0 2rem; display: flex; align-items: center;
+           justify-content: space-between; height: 56px }
+  .logo { font-size: 15px; font-weight: 600; display: flex; align-items: center; gap: 8px }
+  .logo-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--blue) }
+  main { max-width: 860px; margin: 0 auto; padding: 2rem 1.5rem }
+  .card { background: var(--surface); border: 1px solid var(--border);
+          border-radius: var(--radius); padding: 1.5rem; margin-bottom: 1.5rem }
+  .card-title { font-size: 13px; font-weight: 600; text-transform: uppercase;
+                letter-spacing: .06em; color: var(--muted); margin-bottom: 1rem }
+  label { display: block; font-size: 13px; font-weight: 500;
+          margin-bottom: 5px; margin-top: 1rem }
+  label:first-of-type { margin-top: 0 }
+  input[type=text], textarea {
+    width: 100%; padding: 9px 12px; border: 1px solid var(--border);
+    border-radius: 7px; font-size: 13px; font-family: inherit;
+    background: var(--surface); color: var(--text); outline: none;
+    transition: border-color .15s }
+  input[type=text]:focus, textarea:focus { border-color: var(--blue) }
+  textarea { resize: vertical; min-height: 160px;
+             font-family: var(--mono); font-size: 12px; line-height: 1.7 }
+  .hint { font-size: 11px; color: var(--muted); margin-top: 4px; line-height: 1.5 }
+  .row { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem }
+  .slider-row { display: flex; align-items: center; gap: 10px }
+  .slider-row input[type=range] { flex: 1 }
+  .slider-val { font-size: 13px; font-weight: 500; min-width: 32px; text-align: right }
+  button.primary { width: 100%; padding: 11px; background: var(--blue); color: white;
+    border: none; border-radius: 7px; font-size: 14px; font-weight: 500;
+    cursor: pointer; transition: opacity .15s; margin-top: 1.25rem }
+  button.primary:hover { opacity: .9 }
+  button.primary:disabled { opacity: .5; cursor: not-allowed }
+
+  /* Job ID panel */
+  #jobid-panel { display: none }
+  .jobid-box { background: var(--green-bg); border: 1px solid #bbf7d0;
+               border-radius: 8px; padding: 20px; text-align: center; margin-bottom: 1rem }
+  .jobid-label { font-size: 12px; color: var(--green); font-weight: 500; margin-bottom: 8px }
+  .jobid-value { font-family: var(--mono); font-size: 28px; font-weight: 700;
+                 color: var(--green); letter-spacing: .1em }
+  .jobid-copy { margin-top: 10px; padding: 7px 16px; background: var(--green);
+                color: white; border: none; border-radius: 6px; font-size: 12px;
+                font-weight: 500; cursor: pointer }
+  .instruction-box { background: var(--blue-bg); border: 1px solid #bfdbfe;
+                     border-radius: 8px; padding: 14px 16px; font-size: 13px;
+                     line-height: 1.8; color: #1d4ed8 }
+  .instruction-box strong { font-weight: 600 }
+
+  /* Progress panel */
+  #progress-panel { display: none }
+  .log-box { background: #1a1a1a; color: #d4d4d4; border-radius: 7px;
+             padding: 1rem; font-family: var(--mono); font-size: 11px;
+             line-height: 1.8; max-height: 280px; overflow-y: auto }
+  .log-box .ok   { color: #86efac }
+  .log-box .err  { color: #fca5a5 }
+  .log-box .info { color: #93c5fd }
+  .progress-bar-wrap { background: var(--border); border-radius: 99px;
+                       height: 6px; margin: 1rem 0 .5rem; overflow: hidden }
+  .progress-bar { height: 100%; background: var(--blue); border-radius: 99px;
+                  width: 5%; transition: width .4s }
+
+  /* Results panel */
+  #results-panel { display: none }
+  .stat-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 1.5rem }
+  .stat { background: var(--bg); border-radius: 8px; padding: 12px 14px; text-align: center }
+  .stat .n { font-size: 26px; font-weight: 600 }
+  .stat .l { font-size: 11px; color: var(--muted); margin-top: 2px }
+  .scene-block { border: 1px solid var(--border); border-radius: 8px;
+                 margin-bottom: 10px; overflow: hidden }
+  .scene-head { padding: 10px 14px; background: var(--bg);
+                display: flex; align-items: center; justify-content: space-between }
+  .scene-name { font-size: 13px; font-weight: 600 }
+  .scene-desc { font-size: 12px; color: var(--muted); margin-top: 1px }
+  .scene-count { font-size: 11px; color: var(--muted); white-space: nowrap; margin-left: 12px }
+  .scene-body { padding: 10px 14px }
+  .clip-row { display: flex; align-items: center; gap: 10px; padding: 7px 10px;
+              border-radius: 6px; margin-bottom: 5px; font-size: 12px }
+  .clip-name { font-weight: 500; flex: 1; font-family: var(--mono) }
+  .clip-meta { color: var(--muted); font-size: 11px }
+  .badge { display: inline-block; font-size: 10px; font-weight: 600;
+           padding: 2px 7px; border-radius: 20px; white-space: nowrap }
+  .badge-green  { background: var(--green-bg); color: var(--green) }
+  .badge-yellow { background: var(--yellow-bg); color: var(--yellow) }
+  .badge-red    { background: var(--red-bg); color: var(--red) }
+  .new-btn { display: block; width: 100%; padding: 10px; background: var(--surface);
+             border: 1px solid var(--border); border-radius: 7px; font-size: 13px;
+             font-weight: 500; cursor: pointer; text-align: center; margin-top: 1rem }
+  .new-btn:hover { background: var(--bg) }
+  .empty { text-align: center; padding: 2rem; color: var(--muted); font-size: 13px }
+</style>
+</head>
+<body>
+<header>
+  <div class="logo"><div class="logo-dot"></div>Footage Tool</div>
+  <div style="font-size:12px;color:var(--muted)">Powered by Railway</div>
+</header>
+<main>
+
+  <!-- FORM PANEL -->
+  <div id="form-panel">
+    <div class="card">
+      <div class="card-title">New Analysis</div>
+      <label>Project name</label>
+      <input type="text" id="project-name" placeholder="e.g. NutriAsia_TVC">
+      <label>Scene descriptions</label>
+      <textarea id="script-text" placeholder="Scene 1: Wide shot of students entering a school building.
+Scene 2: Close-up of a teacher writing on a whiteboard.
+Scene 3: Group of children laughing at a lunch table.
+Scene 4: Product logo on a white background."></textarea>
+      <div class="hint">One scene per line. Format: "Scene 1: description here."</div>
+      <div class="row" style="margin-top:1rem">
+        <div>
+          <label>Match threshold</label>
+          <div class="slider-row">
+            <input type="range" id="threshold" min="0.05" max="0.50" step="0.05" value="0.20">
+            <span class="slider-val" id="threshold-val">0.20</span>
+          </div>
+          <div class="hint">Lower = more clips pass.</div>
+        </div>
+      </div>
+      <button class="primary" onclick="startJob()">Start Job →</button>
+    </div>
+  </div>
+
+  <!-- JOB ID PANEL -->
+  <div id="jobid-panel">
+    <div class="card">
+      <div class="card-title">Job Created</div>
+      <div class="jobid-box">
+        <div class="jobid-label">Your Job ID</div>
+        <div class="jobid-value" id="jobid-display"></div>
+        <button class="jobid-copy" onclick="copyJobId()">Copy Job ID</button>
+      </div>
+      <div class="instruction-box">
+        <strong>Now run the agent on your Mac:</strong><br>
+        1. Double-click <strong>AGENT.command</strong><br>
+        2. Paste the Job ID above when prompted<br>
+        3. Drag in your footage folder<br>
+        4. The agent sends frames to the server — footage stays on your Mac<br>
+        5. Come back here to watch results appear live
+      </div>
+      <button class="primary" style="margin-top:1rem" onclick="startPolling()">Watch Results →</button>
+    </div>
+  </div>
+
+  <!-- PROGRESS PANEL -->
+  <div id="progress-panel">
+    <div class="card">
+      <div class="card-title">Analyzing — <span id="progress-project"></span></div>
+      <div class="progress-bar-wrap"><div class="progress-bar" id="progress-bar"></div></div>
+      <div id="progress-status" style="font-size:12px;color:var(--muted);margin-bottom:10px">Waiting for agent...</div>
+      <div class="log-box" id="log-box"></div>
+    </div>
+  </div>
+
+  <!-- RESULTS PANEL -->
+  <div id="results-panel">
+    <div class="card">
+      <div class="card-title">Results — <span id="result-project"></span></div>
+      <div class="stat-grid" id="stat-grid"></div>
+      <div id="scenes-list"></div>
+      <button class="new-btn" onclick="resetForm()">← Analyze another project</button>
+    </div>
+  </div>
+
+</main>
+<script>
+  let currentJobId = null
+  let pollInterval = null
+
+  document.getElementById('threshold').addEventListener('input', function() {
+    document.getElementById('threshold-val').textContent = parseFloat(this.value).toFixed(2)
+  })
+
+  async function startJob() {
+    const projectName = document.getElementById('project-name').value.trim()
+    const scriptText  = document.getElementById('script-text').value.trim()
+    const threshold   = parseFloat(document.getElementById('threshold').value)
+
+    if (!projectName) { alert('Please enter a project name.'); return }
+    if (!scriptText)  { alert('Please enter your scene descriptions.'); return }
+
+    try {
+      const res  = await fetch('/api/start', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ project_name: projectName, script_text: scriptText, threshold })
+      })
+      const data = await res.json()
+      if (data.error) { alert(data.error); return }
+
+      currentJobId = data.job_id
+      document.getElementById('jobid-display').textContent = data.job_id
+      document.getElementById('form-panel').style.display  = 'none'
+      document.getElementById('jobid-panel').style.display = 'block'
+
+    } catch(e) { alert('Error: ' + e.message) }
+  }
+
+  function copyJobId() {
+    navigator.clipboard.writeText(currentJobId)
+      .then(() => alert('Job ID copied!'))
+      .catch(() => {
+        const el = document.getElementById('jobid-display')
+        const range = document.createRange()
+        range.selectNode(el)
+        window.getSelection().removeAllRanges()
+        window.getSelection().addRange(range)
+        document.execCommand('copy')
+        alert('Job ID copied!')
+      })
+  }
+
+  function startPolling() {
+    document.getElementById('jobid-panel').style.display     = 'none'
+    document.getElementById('progress-panel').style.display  = 'block'
+    document.getElementById('progress-project').textContent  = document.getElementById('project-name').value
+
+    let logLength = 0
+    let progress  = 5
+
+    pollInterval = setInterval(async () => {
+      try {
+        const res  = await fetch(`/api/job/${currentJobId}`)
+        const data = await res.json()
+        const logBox   = document.getElementById('log-box')
+        const newLines = data.log.slice(logLength)
+        logLength = data.log.length
+
+        newLines.forEach(line => {
+          const div = document.createElement('div')
+          if (line.includes('✅') || line.includes('Done') || line.includes('done')) div.className = 'ok'
+          else if (line.includes('❌') || line.includes('Error')) div.className = 'err'
+          else if (line.includes('Waiting') || line.includes('Loading')) div.className = 'info'
+          div.textContent = line
+          logBox.appendChild(div)
+          logBox.scrollTop = logBox.scrollHeight
+        })
+
+        if (data.status === 'analyzing' || data.status === 'receiving') {
+          progress = Math.min(progress + 3, 90)
+          document.getElementById('progress-bar').style.width = progress + '%'
+          document.getElementById('progress-status').textContent = data.status === 'receiving' ? 'Receiving frames...' : 'Analyzing clips...'
+        }
+
+        if (data.status === 'done') {
+          clearInterval(pollInterval)
+          document.getElementById('progress-bar').style.width = '100%'
+          document.getElementById('progress-status').textContent = 'Complete!'
+          setTimeout(() => showResults(data), 800)
+        }
+
+        if (data.status === 'error') {
+          clearInterval(pollInterval)
+          document.getElementById('progress-status').textContent = '❌ Failed'
+          document.getElementById('progress-bar').style.background = '#dc2626'
+        }
+      } catch(e) { console.error(e) }
+    }, 2000)
+  }
+
+  function showResults(data) {
+    document.getElementById('progress-panel').style.display = 'none'
+    document.getElementById('results-panel').style.display  = 'block'
+
+    const report = data.results
+    document.getElementById('result-project').textContent = data.project
+
+    document.getElementById('stat-grid').innerHTML = `
+      <div class="stat"><div class="n">${report.total_clips||0}</div><div class="l">Total</div></div>
+      <div class="stat"><div class="n" style="color:var(--green)">${report.usable_clips||0}</div><div class="l">Usable</div></div>
+      <div class="stat"><div class="n" style="color:var(--red)">${report.rejected_clips||0}</div><div class="l">Rejected</div></div>
+      <div class="stat"><div class="n">${(report.scenes||[]).length}</div><div class="l">Scenes</div></div>`
+
+    const scenesList = document.getElementById('scenes-list')
+    scenesList.innerHTML = ''
+    ;(report.scenes||[]).forEach(scene => {
+      const clips = (report.scene_bins||{})[scene.scene] || []
+      let clipsHtml = clips.length === 0
+        ? '<div class="empty">No matching clips for this scene.</div>'
+        : clips.map(c => {
+            const color  = c.label_color === 'Green' ? 'green' : c.label_color === 'Yellow' ? 'yellow' : 'red'
+            const bg     = color === 'green' ? 'var(--green-bg)' : color === 'yellow' ? 'var(--yellow-bg)' : 'var(--red-bg)'
+            return `<div class="clip-row" style="background:${bg}">
+              <span class="clip-name">${c.clip}</span>
+              <span class="clip-meta">score: ${c.match_score.toFixed(2)} | ${c.quality}</span>
+              <span class="badge badge-${color}">${c.label_color}</span>
+            </div>`
+          }).join('')
+
+      const block = document.createElement('div')
+      block.className = 'scene-block'
+      block.innerHTML = `
+        <div class="scene-head">
+          <div><div class="scene-name">${scene.scene}</div>
+          <div class="scene-desc">${scene.description}</div></div>
+          <div class="scene-count">${clips.length} clip(s)</div>
+        </div>
+        <div class="scene-body">${clipsHtml}</div>`
+      scenesList.appendChild(block)
+    })
+  }
+
+  function resetForm() {
+    document.getElementById('results-panel').style.display = 'none'
+    document.getElementById('form-panel').style.display    = 'block'
+    currentJobId = null
+    if (pollInterval) clearInterval(pollInterval)
+  }
+</script>
+</body>
+</html>
